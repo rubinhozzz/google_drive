@@ -1,4 +1,3 @@
-from ast import Try
 from datetime import datetime
 import os.path
 from io import BytesIO

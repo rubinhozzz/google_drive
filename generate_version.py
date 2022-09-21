@@ -8,10 +8,13 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
-FOLDER_ID = '0B-OU12dSFJIRNWNhZGNjMDctODUxMi00OWVkLTgzMjAtMTgwMmVlODgzYjBl'
 FILE_ID = '1lufg5zqhEipinSDe2MkaFYEmB5NDVZW9beZtwhJER_Q' # 20141028_issues
 
+service = None
+
 def _get_service():
+	if service:
+		return service
 	creds = None
 	# The file token.json stores the user's access and refresh tokens, and is
 	# created automatically when the authorization flow completes for the first
@@ -30,8 +33,16 @@ def _get_service():
 			token.write(creds.to_json())
 	return build('drive', 'v3', credentials=creds)
 
-def _get_mimetype(gd_mimetype):
+def _get_mimetype(gd_mimetype: str) -> str:
 	return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+def _get_last_revision(file_id):
+	rev_no = None
+	service = _get_service()
+	revs = service.revisions().list(fileId=FILE_ID).execute()
+	for rev in revs['revisions']:
+		print(rev['id'])
+	return rev_no
 
 def main():
 	try:
@@ -49,12 +60,8 @@ def main():
 			status, done = downloader.next_chunk()
 		media = MediaIoBaseUpload(file, mimetype=mimetype)
 		service.files().update(fileId=FILE_ID, media_body=media).execute()
-		revs = service.revisions().list(fileId=FILE_ID).execute()
-		for rev in revs['revisions']:
-			print(rev['id'])
 	except Exception as ex:
 		print(ex)
 	
-
 if __name__ == '__main__':
 	main()

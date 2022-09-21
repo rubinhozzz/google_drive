@@ -45,13 +45,13 @@ def _get_mimetype(gd_mimetype: str) -> str:
 		return MIME_TYPES[gd_mimetype] 
 	return ''
 
-def _get_last_revision(file_id):
-	rev_no = None
+def _get_last_revision(file_id: str) -> int:
 	service = _get_service()
-	revs = service.revisions().list(fileId=FILE_ID).execute()
-	for rev in revs['revisions']:
-		print(rev['id'])
-	return rev_no
+	response = service.revisions().list(fileId=FILE_ID).execute()
+	if not response:
+		return None
+	revs = response['revisions']
+	return revs[-1]['id']
 
 def main(file_id: str):
 	try:
@@ -71,6 +71,10 @@ def main(file_id: str):
 			status, done = downloader.next_chunk()
 		media = MediaIoBaseUpload(file, mimetype=mimetype)
 		service.files().update(fileId=file_id, media_body=media).execute()
+		rev_no = _get_last_revision(file_id)
+		if not rev_no:
+			raise('No revision created.')
+		print('New revision created: {}.'.format(rev_no))
 	except Exception as ex:
 		print(ex)
 	

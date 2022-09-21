@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime
 import os.path
 from io import BytesIO
@@ -9,6 +10,11 @@ from google.oauth2.credentials import Credentials
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 FILE_ID = '1lufg5zqhEipinSDe2MkaFYEmB5NDVZW9beZtwhJER_Q' # 20141028_issues
+MIME_TYPES = {
+	'application/vnd.google-apps.document': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'application/vnd.google-apps.spreadsheet': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	'application/vnd.google-apps.presentation': 'application/vnd.ms-powerpoint'
+}
 
 service = None
 
@@ -34,7 +40,10 @@ def _get_service():
 	return build('drive', 'v3', credentials=creds)
 
 def _get_mimetype(gd_mimetype: str) -> str:
-	return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+	print('GD MIMETYPE: ', gd_mimetype)
+	if gd_mimetype in MIME_TYPES:
+		return MIME_TYPES[gd_mimetype] 
+	return ''
 
 def _get_last_revision(file_id):
 	rev_no = None
@@ -44,24 +53,32 @@ def _get_last_revision(file_id):
 		print(rev['id'])
 	return rev_no
 
-def main():
+def main(file_id: str):
 	try:
 		service = _get_service()
 		if not service:
 			raise('No service found.')
-		f_metadata = service.files().get(fileId=FILE_ID).execute()
+		f_metadata = service.files().get(fileId=file_id).execute()
 		mimetype = _get_mimetype(f_metadata['mimeType'])
 		print(mimetype)
-		request = service.files().export_media(fileId=FILE_ID, mimeType=mimetype)
+		if not mimetype:
+			raise('Mimetype not found.')
+		request = service.files().export_media(fileId=file_id, mimeType=mimetype)
 		file = BytesIO()
 		downloader = MediaIoBaseDownload(file, request)
 		done = False
 		while done is False:
 			status, done = downloader.next_chunk()
 		media = MediaIoBaseUpload(file, mimetype=mimetype)
-		service.files().update(fileId=FILE_ID, media_body=media).execute()
+		service.files().update(fileId=file_id, media_body=media).execute()
 	except Exception as ex:
 		print(ex)
 	
 if __name__ == '__main__':
-	main()
+	file_id = FILE_ID
+	if len(sys.argv) > 1:
+		file_id = sys.argv[1]
+		print('File id received: {}.'.format(file_id))
+	else:
+		print('Getting default file with id {}.'.format(FILE_ID))
+	main(file_id)
